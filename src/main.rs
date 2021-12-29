@@ -1,42 +1,6 @@
 use indexmap::IndexSet;
 use std::fmt;
 
-struct Pentomino {
-    shapes: Vec<FixedPentomino>,
-}
-
-impl Pentomino {
-    fn new(squares: [(i32, i32); 5]) -> Self {
-        let fixed = FixedPentomino { squares };
-        Pentomino {
-            shapes: Vec::from_iter((0..8).map(|x| fixed.transform(x)).collect::<IndexSet<_>>()),
-        }
-    }
-}
-
-impl fmt::Display for Pentomino {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for row in 0..5 {
-            writeln!(f)?;
-            let mut col = 0;
-            for (i, fixed) in self.shapes.iter().enumerate() {
-                for (x, y) in fixed.squares {
-                    if row != y {
-                        continue;
-                    }
-                    let tot_x = 6 * i as i32 + x;
-                    for _ in 0..(tot_x - col) {
-                        write!(f, "  ")?;
-                    }
-                    col = tot_x + 1;
-                    write!(f, "\u{2588}\u{2588}")?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 #[derive(PartialEq, Eq, Hash)]
 struct FixedPentomino {
     squares: [(i32, i32); 5],
@@ -92,6 +56,42 @@ impl fmt::Display for FixedPentomino {
             }
             col = x + 1;
             write!(f, "\u{2588}\u{2588}")?;
+        }
+        Ok(())
+    }
+}
+
+struct Pentomino {
+    shapes: Vec<FixedPentomino>,
+}
+
+impl Pentomino {
+    fn new(squares: [(i32, i32); 5]) -> Self {
+        let fixed = FixedPentomino { squares };
+        Pentomino {
+            shapes: Vec::from_iter((0..8).map(|x| fixed.transform(x)).collect::<IndexSet<_>>()),
+        }
+    }
+}
+
+impl fmt::Display for Pentomino {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for row in 0..5 {
+            writeln!(f)?;
+            let mut col = 0;
+            for (i, fixed) in self.shapes.iter().enumerate() {
+                for (x, y) in fixed.squares {
+                    if row != y {
+                        continue;
+                    }
+                    let tot_x = 6 * i as i32 + x;
+                    for _ in 0..(tot_x - col) {
+                        write!(f, "  ")?;
+                    }
+                    col = tot_x + 1;
+                    write!(f, "\u{2588}\u{2588}")?;
+                }
+            }
         }
         Ok(())
     }
