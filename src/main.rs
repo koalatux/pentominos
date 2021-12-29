@@ -94,13 +94,14 @@ struct Board<'a> {
 impl<'a> fmt::Display for Board<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f)?;
-        for _ in 0..12 {
-            write!(f, "\u{2588}\u{2588}")?;
+        write!(f, " ")?;
+        for _ in 0..10 {
+            write!(f, "\u{2581}\u{2581}")?;
         }
-        writeln!(f)?;
+        writeln!(f, " ")?;
 
         for row in 0..6 {
-            write!(f, "\u{2588}\u{2588}")?;
+            write!(f, "\u{2595}")?;
             'col: for col in 0..10 {
                 for ((fx, fy), pentomino, orientation) in &self.pentominos {
                     for (x, y) in pentomino.shapes[*orientation].squares {
@@ -113,13 +114,14 @@ impl<'a> fmt::Display for Board<'a> {
                 }
                 write!(f, "  ")?;
             }
-            writeln!(f, "\u{2588}\u{2588}")?;
+            writeln!(f, "\u{258f}")?;
         }
 
-        for _ in 0..12 {
-            write!(f, "\u{2588}\u{2588}")?;
+        write!(f, " ")?;
+        for _ in 0..10 {
+            write!(f, "\u{2594}\u{2594}")?;
         }
-        writeln!(f)?;
+        writeln!(f, " ")?;
 
         Ok(())
     }
