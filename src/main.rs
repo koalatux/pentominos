@@ -1,11 +1,48 @@
+use indexmap::IndexSet;
 use std::fmt;
 
-#[derive(Debug)]
 struct Pentomino {
-    squares: [(i32, i32); 5],
+    shapes: Vec<FixedPentomino>,
 }
 
 impl Pentomino {
+    fn new(squares: [(i32, i32); 5]) -> Self {
+        let fixed = FixedPentomino { squares };
+        Pentomino {
+            shapes: Vec::from_iter((0..8).map(|x| fixed.transform(x)).collect::<IndexSet<_>>()),
+        }
+    }
+}
+
+impl fmt::Display for Pentomino {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for row in 0..5 {
+            writeln!(f)?;
+            let mut col = 0;
+            for (i, fixed) in self.shapes.iter().enumerate() {
+                for (x, y) in fixed.squares {
+                    if row != y {
+                        continue;
+                    }
+                    let tot_x = 6 * i as i32 + x;
+                    for _ in 0..(tot_x - col) {
+                        write!(f, "  ")?;
+                    }
+                    col = tot_x + 1;
+                    write!(f, "\u{2588}\u{2588}")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct FixedPentomino {
+    squares: [(i32, i32); 5],
+}
+
+impl FixedPentomino {
     fn transform(&self, n: i32) -> Self {
         let m = match n {
             0 => ((1, 0), (0, 1)),
@@ -33,13 +70,13 @@ impl Pentomino {
         let min_x = s.iter().map(|(x, _)| x).min().unwrap();
         let min_y = s.iter().map(|(_, y)| y).min().unwrap();
 
-        Pentomino {
+        FixedPentomino {
             squares: s.map(|(x, y)| (x - min_x, y - min_y)),
         }
     }
 }
 
-impl fmt::Display for Pentomino {
+impl fmt::Display for FixedPentomino {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut col = 0;
         let mut row = 0;
@@ -61,13 +98,22 @@ impl fmt::Display for Pentomino {
 }
 
 fn main() {
-    let f = Pentomino {
-        squares: [(1, 0), (2, 0), (0, 1), (1, 1), (1, 2)],
-    };
+    let pentominos = vec![
+        Pentomino::new([(1, 0), (2, 0), (0, 1), (1, 1), (1, 2)]),
+        Pentomino::new([(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]),
+        Pentomino::new([(0, 0), (0, 1), (0, 2), (0, 3), (1, 3)]),
+        Pentomino::new([(1, 0), (1, 1), (0, 2), (1, 2), (0, 3)]),
+        Pentomino::new([(0, 0), (1, 0), (0, 1), (1, 1), (0, 2)]),
+        Pentomino::new([(0, 0), (1, 0), (2, 0), (1, 1), (1, 2)]),
+        Pentomino::new([(0, 0), (2, 0), (0, 1), (1, 1), (2, 1)]),
+        Pentomino::new([(0, 0), (0, 1), (0, 2), (1, 2), (2, 2)]),
+        Pentomino::new([(0, 0), (0, 1), (1, 1), (1, 2), (2, 2)]),
+        Pentomino::new([(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]),
+        Pentomino::new([(1, 0), (0, 1), (1, 1), (1, 2), (1, 3)]),
+        Pentomino::new([(0, 0), (1, 0), (1, 1), (1, 2), (2, 2)]),
+    ];
 
-    println!("f: {}", f);
-    println!();
-    for i in 0..8 {
-        println!("f {}: {}", i, f.transform(i));
+    for p in pentominos {
+        println!("{}", p);
     }
 }
