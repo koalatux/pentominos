@@ -90,29 +90,75 @@ impl fmt::Display for Pentomino {
     }
 }
 
-type PlacedPentomino = ((i32, i32), Pentomino, usize);
-
-struct Board {
-    pentominos: Vec<PlacedPentomino>,
+struct Board<'a> {
+    pentominos: Vec<((i32, i32), &'a Pentomino, usize)>,
+    grid_cache: [[bool; BOARD_SIZE_X]; BOARD_SIZE_Y],
 }
 
-impl Board {
+impl<'a> Board<'a> {
     fn new() -> Self {
         Board {
             pentominos: Vec::new(),
+            grid_cache: [[false; BOARD_SIZE_X]; BOARD_SIZE_Y],
         }
     }
 
-    fn push_unchecked(&mut self, xy: (i32, i32), pentomino: Pentomino, orientation: usize) {
-        self.pentominos.push((xy, pentomino, orientation))
+    fn push(
+        &mut self,
+        (fx, fy): (i32, i32),
+        pentomino: &'a Pentomino,
+        orientation: usize,
+    ) -> Result<(), ()> {
+        for (x, y) in pentomino.shapes[orientation].squares {
+            let x = fx + x;
+            let y = fy + y;
+            if x < 0
+                || x >= BOARD_SIZE_X as i32
+                || y < 0
+                || y >= BOARD_SIZE_Y as i32
+                || self.grid_cache[y as usize][x as usize]
+            {
+                return Err(());
+            }
+        }
+        self.update_cache((fx, fy), &pentomino, orientation, true);
+        for (x, y) in pentomino.shapes[orientation].squares {
+            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = true;
+        }
+        self.pentominos.push(((fx, fy), pentomino, orientation));
+        Ok(())
     }
 
-    fn pop(&mut self) -> Option<PlacedPentomino> {
-        self.pentominos.pop()
+    fn pop(&mut self) {
+        let (xy, pentomino, orientation) = self.pentominos.pop().unwrap();
+        self.update_cache(xy, &pentomino, orientation, false);
+    }
+
+    fn update_cache(
+        &mut self,
+        (fx, fy): (i32, i32),
+        pentomino: &Pentomino,
+        orientation: usize,
+        value: bool,
+    ) {
+        for (x, y) in pentomino.shapes[orientation].squares {
+            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = value;
+        }
+    }
+
+    fn next_free_square_from(&self, x: i32, y: i32) -> Option<(i32, i32)> {
+        for n in (x as usize + y as usize * BOARD_SIZE_X)..(BOARD_SIZE_X * BOARD_SIZE_Y) {
+            let x = n % BOARD_SIZE_X;
+            let y = n / BOARD_SIZE_X;
+            if !self.grid_cache[y][x] {
+                return Some((x as i32, y as i32));
+            }
+        }
+        None
     }
 }
 
-impl fmt::Display for Board {
+impl fmt::Display for Board<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f)?;
         write!(f, " ")?;
@@ -148,108 +194,42 @@ impl fmt::Display for Board {
     }
 }
 
-struct CheckedBoard {
-    board: Board,
-    grid_cache: [[bool; BOARD_SIZE_X]; BOARD_SIZE_Y],
-}
-
-impl CheckedBoard {
-    fn new() -> Self {
-        CheckedBoard {
-            board: Board::new(),
-            grid_cache: [[false; BOARD_SIZE_X]; BOARD_SIZE_Y],
-        }
-    }
-
-    fn push(
-        &mut self,
-        (fx, fy): (i32, i32),
-        pentomino: Pentomino,
-        orientation: usize,
-    ) -> Result<(), Pentomino> {
-        for (x, y) in pentomino.shapes[orientation].squares {
-            let x = fx + x;
-            let y = fy + y;
-            if x < 0
-                || x >= BOARD_SIZE_X as i32
-                || y < 0
-                || y >= BOARD_SIZE_Y as i32
-                || self.grid_cache[y as usize][x as usize]
-            {
-                return Err(pentomino);
-            }
-        }
-        self.update_cache((fx, fy), &pentomino, orientation, true);
-        for (x, y) in pentomino.shapes[orientation].squares {
-            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = true;
-        }
-        self.board.push_unchecked((fx, fy), pentomino, orientation);
-        Ok(())
-    }
-
-    fn pop(&mut self) -> Option<PlacedPentomino> {
-        let (xy, pentomino, orientation) = self.board.pop()?;
-        self.update_cache(xy, &pentomino, orientation, false);
-        Some((xy, pentomino, orientation))
-    }
-
-    fn update_cache(
-        &mut self,
-        (fx, fy): (i32, i32),
-        pentomino: &Pentomino,
-        orientation: usize,
-        value: bool,
-    ) {
-        for (x, y) in pentomino.shapes[orientation].squares {
-            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = value;
-        }
-    }
-
-    fn next_free_square_from(&self, x: i32, y: i32) -> Option<(i32, i32)> {
-        for n in (x as usize + y as usize * BOARD_SIZE_X)..(BOARD_SIZE_X * BOARD_SIZE_Y) {
-            let x = n % BOARD_SIZE_X;
-            let y = n / BOARD_SIZE_X;
-            if !self.grid_cache[y][x] {
-                return Some((x as i32, y as i32));
-            }
-        }
-        None
-    }
-}
-
-impl fmt::Display for CheckedBoard {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.board.fmt(f)
-    }
-}
-
-fn solve_recursively(
-    board: &mut CheckedBoard,
+fn solve_recursively<'a>(
+    board: &mut Board<'a>,
     (x, y): (i32, i32),
-    pentominos: &mut Vec<Pentomino>,
+    pentominos: &mut Vec<&'a Pentomino>,
 ) {
+    //println!("{}", board);
     for i in 0..pentominos.len() {
-        let mut pentomino = Some(pentominos.remove(i));
-        for orientation in 0..pentomino.as_ref().unwrap().shapes.len() {
-            if let Err(p) = board.push((x, y), pentomino.take().unwrap(), orientation) {
-                pentomino = Some(p);
+        let pentomino = pentominos[i];
+        for orientation in 0..pentomino.shapes.len() {
+            if let Err(_) = board.push((x, y), pentomino, orientation) {
                 continue;
             }
             if let Some(xy) = board.next_free_square_from(x, y) {
+                // slow
+                // let mut p: Vec<&Pentomino> = pentominos.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, v)| *v).collect();
+
+                // also slower
+                // let mut p = pentominos.clone();
+                // p.remove(i);
+
+                pentominos.remove(i);
                 solve_recursively(board, xy, pentominos);
+                pentominos.insert(i, pentomino);
             } else {
                 println!("{}", board);
-                pentominos.insert(i, Some(board.pop().unwrap().1).unwrap());
+                board.pop();
+                panic!();
                 return;
             }
-            pentomino = Some(board.pop().unwrap().1);
+            board.pop();
         }
-        pentominos.insert(i, pentomino.unwrap());
     }
 }
 
 fn main() {
-    let mut pentominos = vec![
+    let pentominos = vec![
         Pentomino::new((221, 187, 153), [(1, 0), (2, 0), (0, 1), (1, 1), (1, 2)]),
         Pentomino::new((238, 170, 170), [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]),
         Pentomino::new((204, 204, 136), [(0, 0), (0, 1), (0, 2), (0, 3), (1, 3)]),
@@ -271,21 +251,22 @@ fn main() {
     */
 
     /*
-    let mut board = CheckedBoard::new();
-    board.push((0, 0), pentominos[1].clone(), 0).ok().unwrap();
-    board.push((1, 0), pentominos[4].clone(), 0).ok().unwrap();
-    board.push((3, 0), pentominos[10].clone(), 3).ok().unwrap();
-    board.push((7, 0), pentominos[7].clone(), 2).ok().unwrap();
-    board.push((3, 1), pentominos[9].clone(), 0).ok().unwrap();
-    board.push((5, 1), pentominos[2].clone(), 7).ok().unwrap();
-    board.push((5, 2), pentominos[0].clone(), 1).ok().unwrap();
-    board.push((6, 2), pentominos[11].clone(), 0).ok().unwrap();
-    board.push((1, 3), pentominos[5].clone(), 2).ok().unwrap();
-    board.push((2, 3), pentominos[8].clone(), 0).ok().unwrap();
-    board.push((8, 3), pentominos[6].clone(), 3).ok().unwrap();
-    board.push((4, 4), pentominos[3].clone(), 1).ok().unwrap();
+    let mut board = Board::new();
+    board.push((0, 0), &pentominos[1], 0).ok().unwrap();
+    board.push((1, 0), &pentominos[4], 0).ok().unwrap();
+    board.push((3, 0), &pentominos[10], 3).ok().unwrap();
+    board.push((7, 0), &pentominos[7], 2).ok().unwrap();
+    board.push((3, 1), &pentominos[9], 0).ok().unwrap();
+    board.push((5, 1), &pentominos[2], 7).ok().unwrap();
+    board.push((5, 2), &pentominos[0], 1).ok().unwrap();
+    board.push((6, 2), &pentominos[11], 0).ok().unwrap();
+    board.push((1, 3), &pentominos[5], 2).ok().unwrap();
+    board.push((2, 3), &pentominos[8], 0).ok().unwrap();
+    board.push((8, 3), &pentominos[6], 3).ok().unwrap();
+    board.push((4, 4), &pentominos[3], 1).ok().unwrap();
     println!("{}", board);
     */
 
-    solve_recursively(&mut CheckedBoard::new(), (0, 0), &mut pentominos);
+    let mut pr = pentominos.iter().collect();
+    solve_recursively(&mut Board::new(), (0, 0), &mut pr);
 }
