@@ -98,16 +98,16 @@ struct Board<'a> {
 impl<'a> Board<'a> {
     fn new() -> Self {
         let mut grid_cache = [[false; BOARD_SIZE_X + 7]; BOARD_SIZE_Y + 4];
-        for y in 0..BOARD_SIZE_Y {
-            for x in 0..3 {
-                grid_cache[y][x] = true;
+        for row in grid_cache.iter_mut().take(BOARD_SIZE_Y) {
+            for s in row.iter_mut().take(3) {
+                *s = true;
             }
-            for x in BOARD_SIZE_X + 3..BOARD_SIZE_X + 7 {
-                grid_cache[y][x] = true;
+            for s in row.iter_mut().skip(BOARD_SIZE_X + 3) {
+                *s = true;
             }
         }
-        for y in BOARD_SIZE_Y..BOARD_SIZE_Y + 4 {
-            grid_cache[y] = [true; BOARD_SIZE_X + 7];
+        for row in grid_cache.iter_mut().skip(BOARD_SIZE_Y) {
+            *row = [true; BOARD_SIZE_X + 7];
         }
         Board {
             pentominos: Vec::new(),
@@ -129,14 +129,14 @@ impl<'a> Board<'a> {
                 return Err(());
             }
         }
-        self.update_cache((fx, fy), &pentomino, orientation, true);
+        self.update_cache((fx, fy), pentomino, orientation, true);
         self.pentominos.push(((fx, fy), pentomino, orientation));
         Ok(())
     }
 
     fn pop(&mut self) {
         let (xy, pentomino, orientation) = self.pentominos.pop().unwrap();
-        self.update_cache(xy, &pentomino, orientation, false);
+        self.update_cache(xy, pentomino, orientation, false);
     }
 
     fn update_cache(
@@ -209,7 +209,7 @@ fn solve_recursively<'a>(
     for i in 0..pentominos.len() {
         let pentomino = pentominos.remove(i);
         for orientation in 0..pentomino.shapes.len() {
-            if let Err(_) = board.push((x, y), pentomino, orientation) {
+            if board.push((x, y), pentomino, orientation).is_err() {
                 continue;
             }
             if let Some(xy) = board.next_free_square_from(x, y) {
