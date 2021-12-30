@@ -203,6 +203,7 @@ fn solve_recursively<'a>(
     board: &mut Board<'a>,
     (x, y): (i32, i32),
     pentominos: &mut Vec<&'a Pentomino>,
+    num_solutions: &mut i32,
 ) {
     //println!("{}", board);
     for i in 0..pentominos.len() {
@@ -212,9 +213,10 @@ fn solve_recursively<'a>(
                 continue;
             }
             if let Some(xy) = board.next_free_square_from(x, y) {
-                solve_recursively(board, xy, pentominos);
+                solve_recursively(board, xy, pentominos, num_solutions);
             } else {
                 println!("{}", board);
+                *num_solutions += 1;
                 board.pop();
                 pentominos.insert(i, pentomino);
                 // panic!();
@@ -266,5 +268,7 @@ fn main() {
     */
 
     let mut pr = pentominos.iter().collect();
-    solve_recursively(&mut Board::new(), (0, 0), &mut pr);
+    let mut num_solutions = 0;
+    solve_recursively(&mut Board::new(), (0, 0), &mut pr, &mut num_solutions);
+    println!("Found {} solutions.", num_solutions);
 }
