@@ -122,9 +122,6 @@ impl<'a> Board<'a> {
             }
         }
         self.update_cache((fx, fy), &pentomino, orientation, true);
-        for (x, y) in pentomino.shapes[orientation].squares {
-            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = true;
-        }
         self.pentominos.push(((fx, fy), pentomino, orientation));
         Ok(())
     }
