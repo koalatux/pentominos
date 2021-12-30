@@ -92,14 +92,26 @@ impl fmt::Display for Pentomino {
 
 struct Board<'a> {
     pentominos: Vec<((i32, i32), &'a Pentomino, usize)>,
-    grid_cache: [[bool; BOARD_SIZE_X]; BOARD_SIZE_Y],
+    grid_cache: [[bool; BOARD_SIZE_X + 7]; BOARD_SIZE_Y + 4],
 }
 
 impl<'a> Board<'a> {
     fn new() -> Self {
+        let mut grid_cache = [[false; BOARD_SIZE_X + 7]; BOARD_SIZE_Y + 4];
+        for y in 0..BOARD_SIZE_Y {
+            for x in 0..3 {
+                grid_cache[y][x] = true;
+            }
+            for x in BOARD_SIZE_X + 3..BOARD_SIZE_X + 7 {
+                grid_cache[y][x] = true;
+            }
+        }
+        for y in BOARD_SIZE_Y..BOARD_SIZE_Y + 4 {
+            grid_cache[y] = [true; BOARD_SIZE_X + 7];
+        }
         Board {
             pentominos: Vec::new(),
-            grid_cache: [[false; BOARD_SIZE_X]; BOARD_SIZE_Y],
+            grid_cache,
         }
     }
 
@@ -110,14 +122,10 @@ impl<'a> Board<'a> {
         orientation: usize,
     ) -> Result<(), ()> {
         for (x, y) in pentomino.shapes[orientation].squares {
-            let x = fx + x;
+            let x = fx + x + 3;
             let y = fy + y;
-            if x < 0
-                || x >= BOARD_SIZE_X as i32
-                || y < 0
-                || y >= BOARD_SIZE_Y as i32
-                || self.grid_cache[y as usize][x as usize]
-            {
+
+            if self.grid_cache[y as usize][x as usize] {
                 return Err(());
             }
         }
@@ -139,7 +147,7 @@ impl<'a> Board<'a> {
         value: bool,
     ) {
         for (x, y) in pentomino.shapes[orientation].squares {
-            self.grid_cache[(fy + y) as usize][(fx + x) as usize] = value;
+            self.grid_cache[(fy + y) as usize][(fx + x + 3) as usize] = value;
         }
     }
 
@@ -147,7 +155,7 @@ impl<'a> Board<'a> {
         for n in (x as usize + y as usize * BOARD_SIZE_X)..(BOARD_SIZE_X * BOARD_SIZE_Y) {
             let x = n % BOARD_SIZE_X;
             let y = n / BOARD_SIZE_X;
-            if !self.grid_cache[y][x] {
+            if !self.grid_cache[y][x + 3] {
                 return Some((x as i32, y as i32));
             }
         }
@@ -198,30 +206,23 @@ fn solve_recursively<'a>(
 ) {
     //println!("{}", board);
     for i in 0..pentominos.len() {
-        let pentomino = pentominos[i];
+        let pentomino = pentominos.remove(i);
         for orientation in 0..pentomino.shapes.len() {
             if let Err(_) = board.push((x, y), pentomino, orientation) {
                 continue;
             }
             if let Some(xy) = board.next_free_square_from(x, y) {
-                // slow
-                // let mut p: Vec<&Pentomino> = pentominos.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, v)| *v).collect();
-
-                // also slower
-                // let mut p = pentominos.clone();
-                // p.remove(i);
-
-                pentominos.remove(i);
                 solve_recursively(board, xy, pentominos);
-                pentominos.insert(i, pentomino);
             } else {
                 println!("{}", board);
                 board.pop();
-                panic!();
+                pentominos.insert(i, pentomino);
+                // panic!();
                 return;
             }
             board.pop();
         }
+        pentominos.insert(i, pentomino);
     }
 }
 
