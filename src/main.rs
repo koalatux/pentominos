@@ -1,3 +1,6 @@
+use clap::Parser;
+use pentominos::args::*;
+
 use ansi_term::Colour::RGB;
 use indexmap::IndexSet;
 use std::fmt;
@@ -204,6 +207,7 @@ fn solve_recursively<'a>(
     (x, y): (i32, i32),
     pentominos: &mut Vec<&'a Pentomino>,
     num_solutions: &mut i32,
+    print_board: bool,
 ) {
     //println!("{}", board);
     for i in 0..pentominos.len() {
@@ -213,9 +217,11 @@ fn solve_recursively<'a>(
                 continue;
             }
             if let Some(xy) = board.next_free_square_from(x, y) {
-                solve_recursively(board, xy, pentominos, num_solutions);
+                solve_recursively(board, xy, pentominos, num_solutions, print_board);
             } else {
-                println!("{}", board);
+                if print_board {
+                    println!("{}", board);
+                };
                 *num_solutions += 1;
                 board.pop();
                 pentominos.insert(i, pentomino);
@@ -229,6 +235,10 @@ fn solve_recursively<'a>(
 }
 
 fn main() {
+    // Parse command line arguments
+    let args = Args::parse();
+
+    // Definition of all pieces
     let pentominos = vec![
         Pentomino::new((221, 187, 153), [(1, 0), (2, 0), (0, 1), (1, 1), (1, 2)]),
         Pentomino::new((238, 170, 170), [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]),
@@ -244,31 +254,25 @@ fn main() {
         Pentomino::new((221, 153, 187), [(0, 0), (1, 0), (1, 1), (1, 2), (2, 2)]),
     ];
 
-    /*
-    for p in &pentominos {
-        println!("{}", *p);
+    // Print individual pieces
+    if args.pieces {
+        pentominos.iter().for_each(|p| println!("{}", &p));
     }
-    */
 
-    /*
-    let mut board = Board::new();
-    board.push((0, 0), &pentominos[1], 0).ok().unwrap();
-    board.push((1, 0), &pentominos[4], 0).ok().unwrap();
-    board.push((3, 0), &pentominos[10], 3).ok().unwrap();
-    board.push((7, 0), &pentominos[7], 2).ok().unwrap();
-    board.push((3, 1), &pentominos[9], 0).ok().unwrap();
-    board.push((5, 1), &pentominos[2], 7).ok().unwrap();
-    board.push((5, 2), &pentominos[0], 1).ok().unwrap();
-    board.push((6, 2), &pentominos[11], 0).ok().unwrap();
-    board.push((1, 3), &pentominos[5], 2).ok().unwrap();
-    board.push((2, 3), &pentominos[8], 0).ok().unwrap();
-    board.push((8, 3), &pentominos[6], 3).ok().unwrap();
-    board.push((4, 4), &pentominos[3], 1).ok().unwrap();
-    println!("{}", board);
-    */
-
-    let mut pr = pentominos.iter().collect();
-    let mut num_solutions = 0;
-    solve_recursively(&mut Board::new(), (0, 0), &mut pr, &mut num_solutions);
-    println!("Found {} solutions.", num_solutions);
+    // Solve board and optionally print solutions
+    if args.solve || args.count {
+        let mut pr = pentominos.iter().collect();
+        let mut num_solutions = 0;
+        solve_recursively(
+            &mut Board::new(),
+            (0, 0),
+            &mut pr,
+            &mut num_solutions,
+            args.solve,
+        );
+        // Print number of solutions
+        if args.count {
+            println!("Found {} solutions.", num_solutions);
+        }
+    }
 }
