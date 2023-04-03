@@ -5,9 +5,6 @@ use ansi_term::Colour::RGB;
 use indexmap::IndexSet;
 use std::fmt;
 
-const BOARD_SIZE_X: usize = 10;
-const BOARD_SIZE_Y: usize = 6;
-
 #[derive(PartialEq, Eq, Hash)]
 struct FixedPentomino {
     squares: [(i32, i32); 5],
@@ -94,25 +91,29 @@ impl fmt::Display for Pentomino {
 }
 
 struct Board<'a> {
+    width: usize,
+    height: usize,
     pentominos: Vec<((i32, i32), &'a Pentomino, usize)>,
-    grid_cache: [[bool; BOARD_SIZE_X + 7]; BOARD_SIZE_Y + 4],
+    grid_cache: Vec<Vec<bool>>,
 }
 
 impl<'a> Board<'a> {
-    fn new() -> Self {
-        let mut grid_cache = [[false; BOARD_SIZE_X + 7]; BOARD_SIZE_Y + 4];
-        for row in grid_cache.iter_mut().take(BOARD_SIZE_Y) {
+    fn new(width: usize, height: usize) -> Self {
+        let mut grid_cache = vec![vec![false; width + 7]; height + 4];
+        for row in grid_cache.iter_mut().take(height) {
             for s in row.iter_mut().take(3) {
                 *s = true;
             }
-            for s in row.iter_mut().skip(BOARD_SIZE_X + 3) {
+            for s in row.iter_mut().skip(width + 3) {
                 *s = true;
             }
         }
-        for row in grid_cache.iter_mut().skip(BOARD_SIZE_Y) {
-            *row = [true; BOARD_SIZE_X + 7];
+        for row in grid_cache.iter_mut().skip(height) {
+            *row = vec![true; width + 7];
         }
         Board {
+            width,
+            height,
             pentominos: Vec::new(),
             grid_cache,
         }
@@ -155,9 +156,9 @@ impl<'a> Board<'a> {
     }
 
     fn next_free_square_from(&self, x: i32, y: i32) -> Option<(i32, i32)> {
-        for n in (x as usize + y as usize * BOARD_SIZE_X)..(BOARD_SIZE_X * BOARD_SIZE_Y) {
-            let x = n % BOARD_SIZE_X;
-            let y = n / BOARD_SIZE_X;
+        for n in (x as usize + y as usize * self.width)..(self.width * self.height) {
+            let x = n % self.width;
+            let y = n / self.width;
             if !self.grid_cache[y][x + 3] {
                 return Some((x as i32, y as i32));
             }
@@ -170,14 +171,14 @@ impl fmt::Display for Board<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f)?;
         write!(f, " ")?;
-        for _ in 0..BOARD_SIZE_X {
+        for _ in 0..self.width {
             write!(f, "\u{2581}\u{2581}")?;
         }
         writeln!(f, " ")?;
 
-        for row in 0..BOARD_SIZE_Y as i32 {
+        for row in 0..self.height as i32 {
             write!(f, "\u{2595}")?;
-            'col: for col in 0..BOARD_SIZE_X as i32 {
+            'col: for col in 0..self.width as i32 {
                 for ((fx, fy), pentomino, orientation) in &self.pentominos {
                     for (x, y) in pentomino.shapes[*orientation].squares {
                         if fy + y == row && fx + x == col {
@@ -193,7 +194,7 @@ impl fmt::Display for Board<'_> {
         }
 
         write!(f, " ")?;
-        for _ in 0..BOARD_SIZE_X {
+        for _ in 0..self.width {
             write!(f, "\u{2594}\u{2594}")?;
         }
         writeln!(f, " ")?;
@@ -220,7 +221,7 @@ fn solve_recursively<'a>(
                 solve_recursively(board, xy, pentominos, num_solutions, print_board);
             } else {
                 if print_board {
-                    println!("{}", board);
+                    println!("{board}");
                 };
                 *num_solutions += 1;
                 board.pop();
@@ -256,7 +257,9 @@ fn main() {
 
     // Print individual pieces
     if args.pieces {
-        pentominos.iter().for_each(|p| println!("{}", &p));
+        for p in &pentominos {
+            println!("{}", &p);
+        }
     }
 
     // Solve board and optionally print solutions
@@ -264,7 +267,7 @@ fn main() {
         let mut pr = pentominos.iter().collect();
         let mut num_solutions = 0;
         solve_recursively(
-            &mut Board::new(),
+            &mut Board::new(args.width, args.height),
             (0, 0),
             &mut pr,
             &mut num_solutions,
@@ -272,7 +275,7 @@ fn main() {
         );
         // Print number of solutions
         if args.count {
-            println!("Found {} solutions.", num_solutions);
+            println!("Found {num_solutions} solutions.");
         }
     }
 }
