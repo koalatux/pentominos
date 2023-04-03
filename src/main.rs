@@ -1,5 +1,5 @@
 use clap::Parser;
-use pentominos::args::*;
+use pentominos::args::Args;
 
 use ansi_term::Colour::RGB;
 use indexmap::IndexSet;
